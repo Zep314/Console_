@@ -1,4 +1,6 @@
-﻿using System;
+﻿
+
+using System;
 
 namespace Console_
 {
@@ -78,18 +80,27 @@ namespace Console_
 
         public void RotateX(float angle)
         {
-            this.z = this.z * MathF.Cos(angle) - this.y * MathF.Sin(angle);
-            this.y = this.z * MathF.Sin(angle) + this.y * MathF.Cos(angle);
+            vec3 b = new vec3(0);
+            b.z = this.z * MathF.Cos(angle) - this.y * MathF.Sin(angle);
+            b.y = this.z * MathF.Sin(angle) + this.y * MathF.Cos(angle);
+            this.z=b.z;
+            this.y=b.y;
         }
         public void RotateY(float angle)
         {
-            this.x = this.x * MathF.Cos(angle) - this.z * MathF.Sin(angle);
-            this.z = this.x * MathF.Sin(angle) + this.z * MathF.Cos(angle);
+            vec3 b = new vec3(0);
+            b.x = this.x * MathF.Cos(angle) - this.z * MathF.Sin(angle);
+            b.z = this.x * MathF.Sin(angle) + this.z * MathF.Cos(angle);
+            this.x=b.x;
+            this.z=b.z;
         }
         public void RotateZ(float angle)
         {
-            this.x = this.x * MathF.Cos(angle) - this.y * MathF.Sin(angle);
-            this.y = this.x * MathF.Sin(angle) + this.y * MathF.Cos(angle);
+            vec3 b = new vec3(0);
+            b.x = this.x * MathF.Cos(angle) - this.y * MathF.Sin(angle);
+            b.y = this.x * MathF.Sin(angle) + this.y * MathF.Cos(angle);
+            this.x=b.x;
+            this.y=b.y;
         }
         public static vec3 operator +( vec3 A, vec3 B) => new vec3(A.x+B.x,A.y+B.y,A.z+B.z);
         public static vec3 operator -( vec3 A, vec3 B) => new vec3(A.x-B.x,A.y-B.y,A.z-B.z);
@@ -105,7 +116,14 @@ namespace Console_
         static void Main(string[] args)
         {
             float clamp(float value, float min, float max) { return MathF.Max(MathF.Min(value, max), min); }
-                        float dot(vec3 a, vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+            float dot(vec3 a, vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+            float Step(float edge, float x) { if (x > edge) {return 1;} else {return 0;} }
+            vec3 reflect(vec3 rd, vec3 n) { return rd - n * (2 * dot(n, rd)); }
+            vec3 Step1(vec3 edge, vec3 v) 
+            {
+                return new vec3(Step(edge.x, v.x), Step(edge.y, v.y), Step(edge.z, v.z)); 
+            }
+
             vec2 Sphere(vec3 ro, vec3 rd, float r) 
             {
                 float b = dot(ro, rd);
@@ -115,6 +133,29 @@ namespace Console_
                 h = MathF.Sqrt(h);
                 return new vec2 (-b - h, -b + h);
             }
+            vec2 box(vec3 ro, vec3 rd, vec3 boxSize, vec3 outNormal) 
+            {
+                vec3 m = new vec3(1.0f) / rd;
+                vec3 n = new(0);
+                n = m * ro;
+                vec3 k = new vec3(0);
+                k = m.Abs() * boxSize;  ////////////!!!!!!!!!!!!!!!!!!!!!!!!!!
+                vec3 t1 = new vec3(0);
+                t1 = -n - k;
+                vec3 t2 = new vec3(0);
+                t2 = -n + k;
+                float tN = MathF.Max(MathF.Max(t1.x, t1.y), t1.z);
+                float tF = MathF.Min(MathF.Min(t2.x, t2.y), t2.z);
+                if (tN > tF || tF < 0.0) return new vec2((float)-1.0);
+                vec3 yzx = new vec3(t1.y, t1.z, t1.x);
+                vec3 zxy = new vec3(t1.z, t1.x, t1.y);
+                outNormal = -rd.Sign() * Step1(yzx, t1) * Step1(zxy, t1);
+                return new vec2(tN, tF);
+            }
+            float plane(vec3 ro, vec3 rd, vec3 p, float w)
+            {
+                return -(dot(ro, p) + w) / dot(rd, p);
+            }
 
 
 ///////////////////////////////// ПРОГРАММА //////////////////////
@@ -123,35 +164,86 @@ namespace Console_
             float aspect = (float) width / height;
             float pixelAspect = 11.0f / 24.0f;
             char[] gradient = {' ','.',':','!','/','r','(','l','1','Z','4','H','9','W','8','$','@'};//" .:!/r(l1Z4H9W8$@";
-            int gradientSize = gradient.Length - 2;
+            int gradientSize = gradient.Length - 1;
+            byte [] screen = new byte[width*height];
 
-            byte [] screen = new byte[width*height+1];
-//            Console.WriteLine($"{height}");
-            for (int t = 0; t < 1000; t++)
+            for (int t = 0; t < 10000; t++)
             {
+//                vec3 light = new vec3(MathF.Sin(t * 0.001f), MathF.Cos(t * 0.001f), -1.0f).Norm();
+                vec3 light = new vec3(-0.5f,-0.5f, -1.0f).Norm();
+                vec3 spherePos = new vec3(0, 3, 0);
                 for (int i = 0; i < width; i++)
                     for (int j = 0; j < height; j++)
                     {
                         vec2 uv = new vec2(i,j) / new vec2(width, height) * 2.0f - 1.0f;
-//                        float x = (float)i / width * 2.0f - 1.0f;
-//                        float y = (float)j / height * 2.0f - 1.0f;
                         uv.x *= aspect * pixelAspect;
-                        uv.x += (float)MathF.Sin(t * 0.01f);
-                        vec3 ro = new vec3(-5,0,0);
-                        vec3 rd = new vec3(1,uv).Norm();
+                        //uv.x += (float)MathF.Sin(t * 0.01f);
+                        vec3 ro = new vec3(-6,0,0);
+                        vec3 rd = new vec3(2,uv).Norm();
 
-                        char pixel = ' ';
-                        float dist = uv.Length(); //MathF.Sqrt(uv.x * uv.x + uv.y * uv.y);
-//                        int color = (int)(1.0f / dist);  Видео 10:10
-                        int color = 1;
+                        ro.RotateY(0.25f);
+                        rd.RotateY(0.25f);
+                        ro.RotateZ(t*0.01f);
+                        rd.RotateZ(t*0.01f);
 
+                        float diff = 1;
+//                        char pixel = ' ';
+                        //float dist = uv.Length();
+                        // int color = (int)(1.0f / dist);  //Видео 10:10
+//                        int color = 0;
+
+                        for (int k = 0; k < 5; k++)
+                        {
+                            float minIt = 99999;
+                            vec2 intersection = Sphere(ro - spherePos,rd,1);
+                            vec3 n = new vec3(0);
+                            float albedo = 1;
+                            if (intersection.x > 0 )
+                            {
+                                vec3 itPoint = new vec3(0);
+                                itPoint = ro + rd * intersection.x;
+                                minIt = intersection.x;
+                                n = itPoint.Norm();
+                                //color = (int)(diff * 20);
+                                //color = 10;
+                                //Console.Write($"itPoint=");itPoint.Print();Console.Write($" n=");n.Print();Console.Write($" diff={diff*20}");Console.WriteLine();
+                                //Console.Write($"itPoint=");itPoint.Print();Console.Write($" n=");n.Print();Console.Write($" diff={diff*20}");Console.Write($" color={color}");Console.WriteLine();
+                            } 
+                            vec3 boxN = new vec3(0);
+                            vec3 one = new vec3(1);
+    			            intersection = box(ro, rd, one, boxN);
+                            if (intersection.x > 0 && intersection.x < minIt)
+                            {
+                                minIt = intersection.x;
+                                n = boxN;
+                            }
+
+                            vec3 v_3 = new vec3(0,0,-1);
+                            intersection = new vec2(plane(ro, rd, v_3, 1f));
+    			            if (intersection.x > 0 && intersection.x < minIt)
+                            {
+	    		                minIt = intersection.x;
+						        n =
+                                 new vec3(0, 0, -1);
+    						    albedo = 0.5f;
+		    	            }
+
+                            if (minIt < 99999)
+                            {
+                                diff *= ( dot(n,light) * 0.5f + 0.5f ) * albedo;
+                                ro = ro + rd * (minIt - 0.01f);
+                                rd = reflect(rd,n);
+                            }
+                            else break;
+                        }
+                        int color = (int)(diff * 20);
                         color = (int)clamp(color,0,gradientSize);
-                        pixel=gradient[color]; 
+                        char pixel=gradient[color]; 
                         screen[i+j*width]=(byte)pixel;
                     }
                 var stdout = Console.OpenStandardOutput(width * height);
                 stdout.Write(screen,0,screen.Length);
-                System.Threading.Thread.Sleep(3);
+//                System.Threading.Thread.Sleep(2);
             }
         }
     }
