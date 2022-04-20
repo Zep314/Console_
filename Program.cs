@@ -63,7 +63,7 @@ namespace Console_
         }     
         public float Length() 
         { 
-            return MathF.Sqrt(this.x * this.x + this.y * this.y + this.z * this.z);; 
+            return MathF.Sqrt(this.x * this.x + this.y * this.y + this.z * this.z); 
         }
         public vec3 Norm()
         {
@@ -118,7 +118,12 @@ namespace Console_
             float clamp(float value, float min, float max) { return MathF.Max(MathF.Min(value, max), min); }
             float dot(vec3 a, vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
             float Step(float edge, float x) { if (x > edge) {return 1;} else {return 0;} }
-            vec3 reflect(vec3 rd, vec3 n) { return rd - n * (2 * dot(n, rd)); }
+            vec3 reflect(vec3 rd, vec3 n) 
+            {
+                vec3 ret = new vec3(0);
+                ret = rd - n * (2 * dot(n, rd));
+                return ret;
+            }
             vec3 Step1(vec3 edge, vec3 v) 
             {
                 return new vec3(Step(edge.x, v.x), Step(edge.y, v.y), Step(edge.z, v.z)); 
@@ -146,7 +151,7 @@ namespace Console_
                 t2 = -n + k;
                 float tN = MathF.Max(MathF.Max(t1.x, t1.y), t1.z);
                 float tF = MathF.Min(MathF.Min(t2.x, t2.y), t2.z);
-                if (tN > tF || tF < 0.0) return new vec2((float)-1.0);
+                if ((tN > tF) || (tF < 0.0)) return new vec2(-1.0f);
                 vec3 yzx = new vec3(t1.y, t1.z, t1.x);
                 vec3 zxy = new vec3(t1.z, t1.x, t1.y);
                 outNormal = -rd.Sign() * Step1(yzx, t1) * Step1(zxy, t1);
@@ -169,8 +174,7 @@ namespace Console_
 
             for (int t = 0; t < 10000; t++)
             {
-//                vec3 light = new vec3(MathF.Sin(t * 0.001f), MathF.Cos(t * 0.001f), -1.0f).Norm();
-                vec3 light = new vec3(-0.5f,-0.5f, -1.0f).Norm();
+                vec3 light = new vec3(-0.5f, 0.5f, -1.0f).Norm();
                 vec3 spherePos = new vec3(0, 3, 0);
                 for (int i = 0; i < width; i++)
                     for (int j = 0; j < height; j++)
@@ -179,7 +183,7 @@ namespace Console_
                         uv.x *= aspect * pixelAspect;
                         //uv.x += (float)MathF.Sin(t * 0.01f);
                         vec3 ro = new vec3(-6,0,0);
-                        vec3 rd = new vec3(2,uv).Norm();
+                        vec3 rd = new vec3(2.0f,uv).Norm();
 
                         ro.RotateY(0.25f);
                         rd.RotateY(0.25f);
@@ -187,12 +191,7 @@ namespace Console_
                         rd.RotateZ(t*0.01f);
 
                         float diff = 1;
-//                        char pixel = ' ';
-                        //float dist = uv.Length();
-                        // int color = (int)(1.0f / dist);  //Видео 10:10
-//                        int color = 0;
-
-                        for (int k = 0; k < 5; k++)
+                        for (int k = 0; k < 3; k++)
                         {
                             float minIt = 99999;
                             vec2 intersection = Sphere(ro - spherePos,rd,1);
@@ -201,13 +200,9 @@ namespace Console_
                             if (intersection.x > 0 )
                             {
                                 vec3 itPoint = new vec3(0);
-                                itPoint = ro + rd * intersection.x;
+                                itPoint = ro - spherePos + rd * intersection.x;
                                 minIt = intersection.x;
                                 n = itPoint.Norm();
-                                //color = (int)(diff * 20);
-                                //color = 10;
-                                //Console.Write($"itPoint=");itPoint.Print();Console.Write($" n=");n.Print();Console.Write($" diff={diff*20}");Console.WriteLine();
-                                //Console.Write($"itPoint=");itPoint.Print();Console.Write($" n=");n.Print();Console.Write($" diff={diff*20}");Console.Write($" color={color}");Console.WriteLine();
                             } 
                             vec3 boxN = new vec3(0);
                             vec3 one = new vec3(1);
@@ -223,9 +218,8 @@ namespace Console_
     			            if (intersection.x > 0 && intersection.x < minIt)
                             {
 	    		                minIt = intersection.x;
-						        n =
-                                 new vec3(0, 0, -1);
-    						    albedo = 0.5f;
+						        n = new vec3(0, 0, -1);
+    						    albedo = 0.1f;
 		    	            }
 
                             if (minIt < 99999)
